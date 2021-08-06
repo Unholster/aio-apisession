@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 import logging
 
+from .callbacks import terminate_on_error
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +18,7 @@ class Throttle:
     def __post_init__(self):
         self._semaphore = asyncio.BoundedSemaphore(self.release_rate)
         self._task = asyncio.create_task(self.run())
+        self._task.add_done_callback(terminate_on_error)
 
     def throttled(self):
         return self._semaphore.locked()
@@ -25,10 +28,17 @@ class Throttle:
         at a defined rate
         '''
         while True:
-            await asyncio.sleep(self.release_freq)
+            await asyncio.sleep(self.release_freq.total_seconds())
             for i in range(self.release_rate):
-                self._semaphore.release()
+                try:
+                    self._semaphore.release()
+                except ValueError:
+                    # Semaphore overflow
+                    break
 
     async def handle_request(self, request: dict):
+        if self.throttled():
+            logger.info('Throttling {}'.format(request.get('url')))
+
         await self._semaphore.acquire()
         return request
