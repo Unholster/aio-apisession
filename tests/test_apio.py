@@ -87,8 +87,12 @@ async def test_debouncer(slumber, url):
     ) as session:
         await session.get('200')
         assert not debouncer.backing_off()
+
         await session.get('429')
+        await slumber.sleep(0)
+
         assert debouncer.backing_off()
+
         await slumber.wake()
-        await slumber.sleep(0)  # yield control to the debouncer
+        await slumber.sleep(0)
         assert not debouncer.backing_off()
