@@ -20,6 +20,7 @@ class TokenAuthenticator:
     refresh_interval: timedelta
     initial_state: InitVar[Optional[dict]]
     _mutable: list = field(default_factory=lambda: [None, None])
+    _task: asyncio.Task = field(init=False, default=None)
 
     def __post_init__(self, initial_state: dict):
         self._mutable[STATE] = {
@@ -29,7 +30,8 @@ class TokenAuthenticator:
 
     def set_apisession(self, apisession: APISession):
         self._mutable[SESSION] = apisession
-        asyncio.create_task(self.run())
+        if not self._task:
+            self._task = asyncio.create_task(self.run())
 
     async def run(self):
         logger.info('Starting TokenAuthenticator')

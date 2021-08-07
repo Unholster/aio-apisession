@@ -13,14 +13,15 @@ class Debouncer:
     interval: timedelta
     statuses: List[int]
     _condition: asyncio.Condition = field(init=False)
-    _task: asyncio.Task = field(init=False)
+    _task: asyncio.Task = field(init=False, default=None)
     _backing_off: bool = field(init=False, default=False)
 
     def __post_init__(self):
         self._condition = asyncio.Condition()
 
     def set_apisession(self, apisession):
-        self._task = asyncio.create_task(self.run())
+        if not self._task:
+            self._task = asyncio.create_task(self.run())
 
     async def handle_response(self, response: Response) -> Response:
         if response.status in self.statuses:
