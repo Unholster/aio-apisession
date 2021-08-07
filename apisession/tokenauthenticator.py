@@ -32,6 +32,7 @@ class TokenAuthenticator:
         asyncio.create_task(self.run())
 
     async def run(self):
+        logger.info('Starting TokenAuthenticator')
         while True:
             logger.info('Refreshing token')
             try:

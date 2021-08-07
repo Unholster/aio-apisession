@@ -18,6 +18,8 @@ class Debouncer:
 
     def __post_init__(self):
         self._condition = asyncio.Condition()
+
+    def set_apisession(self, apisession):
         self._task = asyncio.create_task(self.run())
 
     async def handle_response(self, response: Response) -> Response:
@@ -32,6 +34,7 @@ class Debouncer:
     async def run(self):
         interval_secs = self.interval.total_seconds()
 
+        logger.info('Starting Debouncer')
         while True:
             async with self._condition:
                 self._backing_off = False

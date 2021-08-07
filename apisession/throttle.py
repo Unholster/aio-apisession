@@ -17,16 +17,20 @@ class Throttle:
 
     def __post_init__(self):
         self._semaphore = asyncio.BoundedSemaphore(self.release_rate)
-        self._task = asyncio.create_task(self.run())
-        self._task.add_done_callback(terminate_on_error)
 
     def throttled(self):
         return self._semaphore.locked()
+
+    def set_apisession(self, apisession):
+        self._task = asyncio.create_task(self.run())
+        self._task.add_done_callback(terminate_on_error)
 
     async def run(self):
         '''Releases the Bounded Sempaphore that throttles requests
         at a defined rate
         '''
+
+        logger.info('Starting Throttle')
         while True:
             await asyncio.sleep(self.release_freq.total_seconds())
             for i in range(self.release_rate):
