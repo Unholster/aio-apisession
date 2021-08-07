@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 
 from .apisession import APISession
+from .callbacks import terminate_on_error
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class TokenAuthenticator:
         self._mutable[SESSION] = apisession
         if not self._task:
             self._task = asyncio.create_task(self.run())
+            self._task.add_done_callback(terminate_on_error)
 
     async def run(self):
         logger.info('Starting TokenAuthenticator')

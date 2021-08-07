@@ -5,6 +5,9 @@ from datetime import timedelta
 import logging
 from typing import List
 
+from .callbacks import terminate_on_error
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,19 +15,17 @@ logger = logging.getLogger(__name__)
 class Debouncer:
     interval: timedelta
     statuses: List[int]
-    _condition: asyncio.Condition = field(init=False)
+    _condition: asyncio.Condition = field(init=False, default=None)
     _task: asyncio.Task = field(init=False, default=None)
     _backing_off: bool = field(init=False, default=False)
-
-    def __post_init__(self):
-        self._condition = asyncio.Condition()
 
     def set_apisession(self, apisession):
         if not self._task:
             self._task = asyncio.create_task(self.run())
+            self._task.add_done_callback(terminate_on_error)
 
     async def handle_response(self, response: Response) -> Response:
-        if response.status in self.statuses:
+        if self._condition and response.status in self.statuses:
             async with self._condition:
                 self._condition.notify()
         return response
@@ -33,6 +34,7 @@ class Debouncer:
         return self._backing_off
 
     async def run(self):
+        self._condition = asyncio.Condition()
         interval_secs = self.interval.total_seconds()
 
         logger.info('Starting Debouncer')

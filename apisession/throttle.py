@@ -12,14 +12,11 @@ logger = logging.getLogger(__name__)
 class Throttle:
     release_rate: int
     release_freq: timedelta
-    _semaphore: asyncio.BoundedSemaphore = field(init=False)
+    _semaphore: asyncio.BoundedSemaphore = field(init=False, default=None)
     _task: asyncio.Task = field(init=False, default=None)
 
-    def __post_init__(self):
-        self._semaphore = asyncio.BoundedSemaphore(self.release_rate)
-
     def throttled(self):
-        return self._semaphore.locked()
+        return self._semaphore and self._semaphore.locked()
 
     def set_apisession(self, apisession):
         if not self._task:
@@ -30,6 +27,7 @@ class Throttle:
         '''Releases the Bounded Sempaphore that throttles requests
         at a defined rate
         '''
+        self._semaphore = asyncio.BoundedSemaphore(self.release_rate)
 
         logger.info('Starting Throttle')
         while True:
@@ -42,6 +40,9 @@ class Throttle:
                     break
 
     async def handle_request(self, request: dict):
+        if not self._semaphore:
+            return request
+
         if self.throttled():
             logger.info('Throttling {}'.format(request.get('url')))
 
