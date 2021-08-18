@@ -6,6 +6,7 @@ import logging
 from typing import List
 
 from .callbacks import terminate_on_error
+from .apisession import Retry
 
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class Debouncer:
         if self._condition and response.status in self.statuses:
             async with self._condition:
                 self._condition.notify()
+            return Retry
         return response
 
     def backing_off(self) -> bool:

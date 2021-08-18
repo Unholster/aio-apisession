@@ -1,5 +1,6 @@
 # APIO is a asynchronous aiohttp-based general purpose client
 # with features for common API integration scenarios
+from itertools import count
 from typing import Optional, Union
 import logging
 
@@ -8,6 +9,10 @@ from aiohttp.client_exceptions import ClientPayloadError
 from yarl import URL
 
 logger = logging.getLogger(__name__)
+
+
+class Retry:
+    pass
 
 
 class APISession:
@@ -68,16 +73,22 @@ class APISession:
         for handler in self._request_handlers:
             request = await handler(request)
 
-        response = await self._session.request(**request)
+        for attempt in count(1):
+            response = await self._session.request(**request)
 
-        logger.debug(f'[{self._name}] Response: {response.status} {url}')
-        logger.debug(f'[{self._name}] Sent: {request}')
-        logger.debug(f'[{self._name}] Headers received:', response.headers)
+            logger.debug(f'[{self._name}] Sent (attempt {attempt}): {request}')
+            logger.debug(f'[{self._name}] Response: {response.status} {url}')
+            logger.debug(f'[{self._name}] Headers received:', response.headers)
 
-        for handler in self._response_handlers:
-            response = await handler(response)
-            if response is None:
-                return
+            for handler in self._response_handlers:
+                response = await handler(response)
+                if response is None:
+                    return
+
+            if response != Retry:
+                break
+
+            logger.info(f'Attempt {attempt} failed, will retry')
 
         try:
             logger.debug(
