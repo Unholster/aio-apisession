@@ -58,22 +58,22 @@ class APISession:
             - Throttles requests according to `max_requests_per_minute`
         '''
 
-        request_url = (
-            URL(url)
-            if self._url is None
-            else self._url.join(URL(url))
-        )
-
-        request = {
-            'url': request_url,
-            'method': method,
-            **kwargs,
-        }
-
-        for handler in self._request_handlers:
-            request = await handler(request)
-
         for attempt in count(1):
+            request_url = (
+                URL(url)
+                if self._url is None
+                else self._url.join(URL(url))
+            )
+
+            request = {
+                'url': request_url,
+                'method': method,
+                **kwargs,
+            }
+
+            for handler in self._request_handlers:
+                request = await handler(request)
+
             response = await self._session.request(**request)
 
             logger.debug(f'[{self._name}] Sent (attempt {attempt}): {request}')
@@ -88,7 +88,7 @@ class APISession:
             if response != Retry:
                 break
 
-            logger.info(f'Attempt {attempt} failed, will retry')
+            logger.info(f'Attempt {attempt} failed [{response.status}], will retry')
 
         try:
             logger.debug(

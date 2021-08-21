@@ -28,6 +28,7 @@ class Debouncer:
     async def handle_response(self, response: Response) -> Response:
         if self._condition and response.status in self.statuses:
             async with self._condition:
+                logger.info(f'Response [{response.status}]')
                 self._condition.notify()
             return Retry
         return response
