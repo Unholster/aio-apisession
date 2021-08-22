@@ -88,7 +88,7 @@ class APISession:
             if response != Retry:
                 break
 
-            logger.info(f'Attempt {attempt} failed [{response.status}], will retry')
+            logger.info(f'Attempt {attempt} failed, will retry')
 
         try:
             logger.debug(
