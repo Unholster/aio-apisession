@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from datetime import timedelta
 import logging
+from typing import Optional
 
 from .callbacks import terminate_on_error
 
@@ -12,8 +13,11 @@ logger = logging.getLogger(__name__)
 class Throttle:
     release_rate: int
     release_freq: timedelta
+    initial: Optional[int] = None
+    limit: Optional[int] = None
     _semaphore: asyncio.BoundedSemaphore = field(init=False, default=None)
     _task: asyncio.Task = field(init=False, default=None)
+    _backlog_counter: int = 0
 
     def throttled(self):
         return self._semaphore and self._semaphore.locked()
@@ -27,11 +31,22 @@ class Throttle:
         '''Releases the Bounded Sempaphore that throttles requests
         at a defined rate
         '''
-        self._semaphore = asyncio.BoundedSemaphore(self.release_rate)
+
+        limit = self.limit if self.limit is not None else self.release_rate
+
+        self._semaphore = asyncio.BoundedSemaphore(limit)
 
         logger.info('Starting Throttle')
+        pre_acquire = (limit - self.initial) if self.initial else 0
+        for i in range(pre_acquire):
+            await self._semaphore.acquire()
+
         while True:
             await asyncio.sleep(self.release_freq.total_seconds())
+
+            if self.throttled():
+                logger.info(f'Throttling - backlog = {self._backlog_counter}')
+
             for i in range(self.release_rate):
                 try:
                     self._semaphore.release()
@@ -43,8 +58,7 @@ class Throttle:
         if not self._semaphore:
             return request
 
-        if self.throttled():
-            logger.info('Throttling {}'.format(request.get('url')))
-
+        self._backlog_counter += 1
         await self._semaphore.acquire()
+        self._backlog_counter -= 1
         return request
